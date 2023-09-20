@@ -17,10 +17,13 @@ class DataBase:
                                     )""",
             )
 
-    def fetch_records(self, table_name=None, filter=None):
+    def fetch_records(self, table_name: str, colnames="*", filter=""):
         with self.conn as c:
-            res = c.execute(f"""select * from {table_name}""")
-            return res.fetchall()
+            filter = f"where {filter}" if filter else ""
+            if colnames != "*":
+                colnames = ",".join(colnames)
+            res = c.execute(f"""select {colnames} from {table_name} {filter}""")
+            return res.fetchall()  # add colnames probably
 
     def add_record(self, table_name, columns, values):
         with self.conn as c:
@@ -36,14 +39,15 @@ class DataBase:
     def update_record(
         self,
         table_name,
-        value,
-        filter=None,
+        value: dict,
+        filter="",
     ):
         with self.conn as c:
-            values = [f"{i} = {j}" for i, j in value]
+            values = [f"{i} = {j}" for i, j in value.items()]
+            filter = f"where {filter}" if filter else ""
             c.execute(
                 f"""update {table_name} set {','.join(values)}
-                {"where filter" if filter else ''}"""
+                {filter}"""
             )
 
     def truncate_table(self, table_name):
@@ -57,3 +61,7 @@ if __name__ == "__main__":
     db.create_table("asdf2", ["i integer"])
     db.add_record("asdf2", ["i"], [1, 2, 3, -98])
     print(db.fetch_records("asdf2"))
+    db.update_record("asdf2", {"i": 8}, filter="i=-98")
+    print(db.fetch_records("asdf2"))
+    db.delete_record("asdf2", filter="i=1")
+    print(db.fetch_records("asdf2", colnames=["i"]))
