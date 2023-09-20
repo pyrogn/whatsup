@@ -54,14 +54,22 @@ class DataBase:
         with self.conn as c:
             c.execute(f"delete from {table_name}")
 
+    def drop_table(self, table_name):
+        with self.conn as c:
+            c.execute(f"drop table {table_name}")
+
+    def take_max(self, table_name):
+        ...
+
 
 if __name__ == "__main__":
     db = DataBase("current_tasks")
-    db.truncate_table("asdf2")
     db.create_table("asdf2", ["i integer"])
+    db.truncate_table("asdf2")
     db.add_record("asdf2", ["i"], [1, 2, 3, -98])
     print(db.fetch_records("asdf2"))
     db.update_record("asdf2", {"i": 8}, filter="i=-98")
     print(db.fetch_records("asdf2"))
     db.delete_record("asdf2", filter="i=1")
+    # db.drop_table("asdf2")
     print(db.fetch_records("asdf2", colnames=["i"]))
