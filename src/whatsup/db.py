@@ -9,13 +9,23 @@ class DataBase:
         self.schema_name = schema_name
         self.conn = sqlite3.connect(self.schema_name)
 
-    def create_table(self, table_name=None, schema=None):
+    def __del__(self):
+        self.conn.close()
+
+    def _execute(self, query, data=""):
         with self.conn as c:
-            c.execute(
-                f"""CREATE TABLE if not exists {table_name} (
-                                        {", ".join(schema)}
-                                    )""",
-            )
+            c.execute(query, data)
+
+    def _executemany(self, query, data=""):
+        with self.conn as c:
+            c.executemany(query, data)
+
+    def create_table(self, table_name=None, schema: list[str] = None):
+        self._execute(
+            f"""CREATE TABLE if not exists {table_name} (
+                    {", ".join(schema)}
+                )""",
+        )
 
     def fetch_records(self, table_name: str, colnames="*", filter=""):
         with self.conn as c:
@@ -33,8 +43,7 @@ class DataBase:
             )
 
     def delete_record(self, table_name, filter: str):
-        with self.conn as c:
-            c.execute(f"delete from {table_name} where {filter}")
+        self._execute(f"delete from {table_name} where {filter}")
 
     def update_record(
         self,
@@ -43,20 +52,18 @@ class DataBase:
         filter="",
     ):
         with self.conn as c:
-            values = [f"{i} = {j}" for i, j in value.items()]
+            values = [f"{i} = {j!r}" for i, j in value.items()]
             filter = f"where {filter}" if filter else ""
-            c.execute(
-                f"""update {table_name} set {','.join(values)}
+            query = f"""update {table_name} set {','.join(values)}
                 {filter}"""
-            )
+            print(query)
+            c.execute(query)
 
     def truncate_table(self, table_name):
-        with self.conn as c:
-            c.execute(f"delete from {table_name}")
+        self._execute(f"delete from {table_name}")
 
     def drop_table(self, table_name):
-        with self.conn as c:
-            c.execute(f"drop table {table_name}")
+        self._execute(f"drop table if exists {table_name}")
 
     def take_max(self, table_name):
         ...
@@ -68,6 +75,7 @@ if __name__ == "__main__":
     db.truncate_table("asdf2")
     db.add_record("asdf2", ["i"], [1, 2, 3, -98])
     print(db.fetch_records("asdf2"))
+    print(type(db.fetch_records("asdf2")[0]))
     db.update_record("asdf2", {"i": 8}, filter="i=-98")
     print(db.fetch_records("asdf2"))
     db.delete_record("asdf2", filter="i=1")
