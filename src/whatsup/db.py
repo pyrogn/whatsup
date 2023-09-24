@@ -27,20 +27,31 @@ class DataBase:
                 )""",
         )
 
-    def fetch_records(self, table_name: str, colnames="*", filter=""):
+    def fetch_records(
+        self, table_name: str, colnames: list[str] = None, filter="", order=""
+    ):
         with self.conn as c:
             filter = f"where {filter}" if filter else ""
-            if colnames != "*":
+            if colnames:
+                real_colnames = colnames
                 colnames = ",".join(colnames)
-            res = c.execute(f"""select {colnames} from {table_name} {filter}""")
-            return res.fetchall()  # add colnames probably
+            else:
+                colnames = "*"
+                real_colnames = next(
+                    zip(*c.execute(f"select * from {table_name}").description)
+                )
+            query = f"""select {colnames} from {table_name} {filter}"""
+            if order:
+                query += f" order by {order}"
+            res = c.execute(query)
+            return res.fetchall(), real_colnames  # add colnames probably
 
     def add_record(self, table_name, columns, values):
-        with self.conn as c:
-            data = [(i,) for i in values]
-            c.executemany(
-                f"insert into {table_name} ({','.join(columns)}) values (?)", data
-            )
+        query = (
+            f"insert into {table_name} ({','.join(columns)}) "
+            f"values ({', '.join(['?'] * len(values))})"
+        )
+        self._execute(query, values)
 
     def delete_record(self, table_name, filter: str):
         self._execute(f"delete from {table_name} where {filter}")
@@ -65,19 +76,14 @@ class DataBase:
     def drop_table(self, table_name):
         self._execute(f"drop table if exists {table_name}")
 
-    def take_max(self, table_name):
-        ...
-
 
 if __name__ == "__main__":
     db = DataBase("current_tasks")
     db.create_table("asdf2", ["i integer"])
     db.truncate_table("asdf2")
-    db.add_record("asdf2", ["i"], [1, 2, 3, -98])
-    print(db.fetch_records("asdf2"))
-    print(type(db.fetch_records("asdf2")[0]))
-    db.update_record("asdf2", {"i": 8}, filter="i=-98")
-    print(db.fetch_records("asdf2"))
-    db.delete_record("asdf2", filter="i=1")
-    # db.drop_table("asdf2")
-    print(db.fetch_records("asdf2", colnames=["i"]))
+    # db.add_record("asdf2", ["i"], [1, 2, 3, -98])
+    # print(db.fetch_records("asdf2"))
+    # db.update_record("asdf2", {"i": 8}, filter="i=-98")
+    # print(db.fetch_records("asdf2"))
+    # db.delete_record("asdf2", filter="i=1")
+    # print(db.fetch_records("asdf2", colnames=["i"]))
