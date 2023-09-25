@@ -14,7 +14,8 @@ class DataBase:
 
     def _execute(self, query, data=""):
         with self.conn as c:
-            c.execute(query, data)
+            res = c.execute(query, data)
+            return res
 
     def _executemany(self, query, data=""):
         with self.conn as c:
@@ -24,33 +25,38 @@ class DataBase:
         self._execute(
             f"""CREATE TABLE if not exists {table_name} (
                     {", ".join(schema)}
-                )""",
+            )""",
         )
 
     def query(self, query):
         with self.conn as c:
             res = c.execute(query)
-            real_colnames = next(zip(*c.execute(query).description))
+            real_colnames = self._get_colnames(query=query)
             return res.fetchall(), real_colnames
+
+    def _get_colnames(self, table_name=None, query=None):
+        with self.conn as c:
+            table_name_query = f"select * from {table_name}"
+            query = query or table_name_query
+            real_colnames = next(zip(*c.execute(query).description))
+            return real_colnames
 
     def fetch_records(
         self, table_name: str, colnames: list[str] = None, filter="", order=""
     ):
-        with self.conn as c:
-            filter = f"where {filter}" if filter else ""
-            if colnames:
-                real_colnames = colnames
-                colnames = ",".join(colnames)
-            else:
-                colnames = "*"
-                real_colnames = next(
-                    zip(*c.execute(f"select * from {table_name}").description)
-                )
-            query = f"""select {colnames} from {table_name} {filter}"""
-            if order:
-                query += f" order by {order}"
-            res = c.execute(query)
-            return res.fetchall(), real_colnames  # add colnames probably
+        filter = f"where {filter}" if filter else ""
+        if colnames:
+            real_colnames = colnames
+            colnames = ",".join(colnames)
+        else:
+            colnames = "*"
+            real_colnames = self._get_colnames(table_name)
+
+        query = f"""select {colnames} from {table_name} {filter}"""
+        if order:
+            query += f" order by {order}"
+        res = self._execute(query)
+        return res.fetchall(), real_colnames  # add colnames probably
 
     def add_record(self, table_name, columns, values):
         query = (
@@ -68,12 +74,11 @@ class DataBase:
         value: dict,
         filter="",
     ):
-        with self.conn as c:
-            values = [f"{i} = {j!r}" for i, j in value.items()]
-            filter = f"where {filter}" if filter else ""
-            query = f"""update {table_name} set {','.join(values)}
-                {filter}"""
-            c.execute(query)
+        values = [f"{i} = {j!r}" for i, j in value.items()]
+        filter = f"where {filter}" if filter else ""
+        query = f"""update {table_name} set {','.join(values)}
+            {filter}"""
+        self._execute(query)
 
     def truncate_table(self, table_name):
         self._execute(f"delete from {table_name}")
