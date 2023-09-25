@@ -27,6 +27,12 @@ class DataBase:
                 )""",
         )
 
+    def query(self, query):
+        with self.conn as c:
+            res = c.execute(query)
+            real_colnames = next(zip(*c.execute(query).description))
+            return res.fetchall(), real_colnames
+
     def fetch_records(
         self, table_name: str, colnames: list[str] = None, filter="", order=""
     ):
@@ -67,7 +73,6 @@ class DataBase:
             filter = f"where {filter}" if filter else ""
             query = f"""update {table_name} set {','.join(values)}
                 {filter}"""
-            print(query)
             c.execute(query)
 
     def truncate_table(self, table_name):

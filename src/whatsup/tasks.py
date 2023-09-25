@@ -41,13 +41,13 @@ class InitDB:
     def active_tasks(self):
         db.drop_table("current_tasks")
         schema = [
+            "id integer primary key autoincrement not null",
             "priority integer default 1",
             "date_inserted timestamp default current_timestamp",
             "deadline timestamp",
             "name varchar",
             "description varchar",
         ]
-        self.colnames = [col_ddl.split(" ")[0] for col_ddl in schema]
         db.create_table(
             "current_tasks",
             schema,
@@ -57,6 +57,7 @@ class InitDB:
 class Actions:
     def __init__(self):
         self.init_task_table()
+        self.map_id_to_num = {}
 
     def _make_task_list(self):
         res, colnames = db.fetch_records("current_tasks")
@@ -72,6 +73,15 @@ class Actions:
     def create_task(self, **values):
         db.add_record("current_tasks", list(values.keys()), list(values.values()))
 
+    def add_task_num(self):
+        ...
+        res, columns = db.query(
+            """select *, row_number() over (order by priority desc, deadline) task_num
+        from current_tasks
+        order by task_num"""
+        )
+        return res, columns
+
     def done_task(self, task_number: int):
         # res = db.fetch_records("current_tasks", filter=f"task_number = {task_number}")
         db.delete_record("current_tasks", filter=f"task_number = {task_number}")
@@ -79,16 +89,23 @@ class Actions:
             "archived_tasks",
         )  # make it work
 
+    def task_num_to_id(self, task_num):
+        """Get mapping task num to id (pk)"""
+        res, columns = self.add_task_num()
+        res_df = pd.DataFrame(res, columns=columns)
+        self.map_id_to_num = res_df.set_index("task_num").to_dict()["id"]
+        return self.map_id_to_num[int(task_num)]
+
     def edit_task(self, task_number, value):
-        db.update_record(
-            "current_tasks", value=value, filter=f"task_number = {task_number}"
-        )
+        task_id = self.task_num_to_id(task_number)
+        db.update_record("current_tasks", value=value, filter=f"id = {task_id}")
 
     def remove_task(self, task_number):
         db.delete_record("current_tasks", filter=f"task_number = {task_number}")
 
     @staticmethod
-    def df_to_str(df, show_cols):
+    def df_to_str(df, show_cols=None):
+        show_cols = show_cols or []
         cols = df.columns
         vals = df.values
         list_str = []
@@ -103,7 +120,6 @@ class Actions:
         return list_str
 
     def show_tasks(self):
-        # res, colnames = db.fetch_records("current_tasks")
         tasks_df = self._make_task_list()
         tasks_df = tasks_df[["task_num", "name", "description", "priority"]]
         return self.df_to_str(tasks_df, show_cols=["priority"])
@@ -113,9 +129,11 @@ if __name__ == "__main__":
     action = Actions()
     action.create_task(name="task 1", priority=3, description="Descr1")
     action.create_task(name="task 2", description="Descr2")
+    print(action.add_task_num())
     # print(action._make_task_list())
     print("\n".join(action.show_tasks()))
-    # action.edit_task("2", {"name": "task2 edited"})
+    action.edit_task("2", {"name": "task2 edited"})
+    print("\n".join(action.show_tasks()))
     # print(action.show_tasks())
     # action.remove_task(1)
     # action.create_task("task 3")
