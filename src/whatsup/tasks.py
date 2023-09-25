@@ -30,11 +30,15 @@ class InitDB:
         ...
 
     def archived_tasks(self):
+        db.drop_table("archived_tasks")
         schema = [
+            "id integer primary key autoincrement not null",
             "ts_archived timestamp default current_timestamp",
             "reason varchar",
             "name varchar",
             "description varchar",
+            "status varchar",
+            "deadline timestamp",
         ]
         db.create_table("archived_tasks", schema=schema)
 
@@ -69,12 +73,12 @@ class Actions:
 
     def init_task_table(self):
         InitDB().active_tasks()
+        InitDB().archived_tasks()
 
     def create_task(self, **values):
         db.add_record("current_tasks", list(values.keys()), list(values.values()))
 
     def add_task_num(self):
-        ...
         res, columns = db.query(
             """select *, row_number() over (order by priority desc, deadline) task_num
         from current_tasks
@@ -84,10 +88,16 @@ class Actions:
 
     def done_task(self, task_number: int):
         # res = db.fetch_records("current_tasks", filter=f"task_number = {task_number}")
-        db.delete_record("current_tasks", filter=f"task_number = {task_number}")
-        db.add_record(
-            "archived_tasks",
-        )  # make it work
+        task_id = self.task_num_to_id(task_number)
+        res, columns = db.fetch_records(
+            "current_tasks",
+            ["name", "description", "deadline"],
+            filter=f"id = {task_id}",
+        )
+        res_df = pd.DataFrame(res, columns=columns)
+        db.delete_record("current_tasks", filter=f"id = {task_id}")
+        cols_insert = ["name", "description", "deadline"]
+        db.add_record("archived_tasks", cols_insert, res_df[cols_insert].values[0])
 
     def task_num_to_id(self, task_num):
         """Get mapping task num to id (pk)"""
@@ -101,7 +111,8 @@ class Actions:
         db.update_record("current_tasks", value=value, filter=f"id = {task_id}")
 
     def remove_task(self, task_number):
-        db.delete_record("current_tasks", filter=f"task_number = {task_number}")
+        task_id = self.task_num_to_id(task_number)
+        db.delete_record("current_tasks", filter=f"id = {task_id}")
 
     @staticmethod
     def df_to_str(df, show_cols=None):
@@ -134,6 +145,13 @@ if __name__ == "__main__":
     print("\n".join(action.show_tasks()))
     action.edit_task("2", {"name": "task2 edited"})
     print("\n".join(action.show_tasks()))
+    action.done_task(1)
+    print()
+    print("\n".join(action.show_tasks()))
+    res, colnames = db.fetch_records("archived_tasks")
+    df = pd.DataFrame(res, columns=colnames)  # consider using only sqllite3
+    print()
+    print(res)
     # print(action.show_tasks())
     # action.remove_task(1)
     # action.create_task("task 3")
