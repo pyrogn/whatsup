@@ -1,4 +1,5 @@
 import typer
+from whatsup.tasks import Actions, InitDB
 
 
 app = typer.Typer()
@@ -7,16 +8,23 @@ quick_app = typer.Typer()
 
 @quick_app.callback(invoke_without_command=True)
 @app.command()
-def hello(name: str):
-    print(f"Hello {name}")
+def show():
+    action = Actions()
+    print("\n".join(action.show_tasks()))
 
 
 @app.command()
-def goodbye(name: str, formal: bool = False):
-    if formal:
-        print(f"Goodbye Ms. {name}. Have a good day.")
-    else:
-        print(f"Bye {name}!")
+def add(name: str, description: str = "", priority: int = 1):
+    action = Actions()
+    action.create_task(
+        name=name, description=description, priority=priority
+    )  # add deadline
+
+
+@app.command()
+def clean():
+    InitDB(is_drop=True).archived_tasks()
+    InitDB(is_drop=True).active_tasks()
 
 
 if __name__ == "__main__":
