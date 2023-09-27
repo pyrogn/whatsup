@@ -22,6 +22,12 @@ def add(name: str, description: str = "", priority: int = 1):
 
 
 @app.command()
+def done(task_num: int):
+    action = Actions()
+    action.done_task(task_num)
+
+
+@app.command()
 def clean():
     InitDB(is_drop=True).archived_tasks()
     InitDB(is_drop=True).active_tasks()

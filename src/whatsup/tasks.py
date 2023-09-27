@@ -37,7 +37,6 @@ class InitDB:
             "ts_archived timestamp default current_timestamp",
             "reason varchar",
             "name varchar",
-            "description varchar",
             "deadline timestamp",
         ]
         db.create_table("archived_tasks", schema=schema)
@@ -51,7 +50,6 @@ class InitDB:
             "date_inserted timestamp default current_timestamp",
             "deadline timestamp",
             "name varchar",
-            "description varchar",
         ]
         db.create_table(
             "current_tasks",
@@ -78,10 +76,13 @@ class Actions:
         InitDB().archived_tasks()
 
     def create_task(self, **values):
+        values["deadline"] = (
+            datetime.now() + timedelta(hours=values.get("deadline", 24))
+        ).strftime("%Y-%m-%d %H:%M:%S")
         db.add_record("current_tasks", list(values.keys()), list(values.values()))
 
     def add_task_num(self):
-        res, columns = db.query(
+        res, columns = db.select(
             """select *, row_number() over (order by priority desc, deadline) task_num
         from current_tasks
         order by task_num"""
@@ -93,12 +94,12 @@ class Actions:
         task_id = self.task_num_to_id(task_number)
         res, columns = db.fetch_records(
             "current_tasks",
-            ["name", "description", "deadline"],
+            ["name", "deadline"],
             filter=f"id = {task_id}",
         )
         res_df = pd.DataFrame(res, columns=columns)
         db.delete_record("current_tasks", filter=f"id = {task_id}")
-        cols_insert = ["name", "description", "deadline"]
+        cols_insert = ["name", "deadline"]
         db.add_record(
             "archived_tasks",
             ["reason"] + cols_insert,
@@ -120,12 +121,12 @@ class Actions:
         task_id = self.task_num_to_id(task_number)
         res, columns = db.fetch_records(
             "current_tasks",
-            ["name", "description", "deadline"],
+            ["name", "deadline"],
             filter=f"id = {task_id}",
         )
         res_df = pd.DataFrame(res, columns=columns)
         db.delete_record("current_tasks", filter=f"id = {task_id}")
-        cols_insert = ["name", "description", "deadline"]
+        cols_insert = ["name", "deadline"]
         db.add_record(
             "archived_tasks",
             ["reason"] + cols_insert,
@@ -150,13 +151,13 @@ class Actions:
 
     def show_tasks(self):
         tasks_df = self._make_task_list()
-        tasks_df = tasks_df[["task_num", "name", "description", "priority"]]
-        return self.df_to_str(tasks_df, show_cols=["priority"])
+        tasks_df = tasks_df[["task_num", "name", "priority", "deadline"]]
+        return self.df_to_str(tasks_df, show_cols=["priority", "deadline"])
 
 
 if __name__ == "__main__":
     action = Actions()
-    action.create_task(name="task 1", priority=3, description="Descr1")
+    action.create_task(name="task 1", priority=3)
     action.create_task(name="task 2", description="Descr2")
     print(action.add_task_num())
     # print(action._make_task_list())

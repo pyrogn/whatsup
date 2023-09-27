@@ -28,7 +28,7 @@ class DataBase:
             )""",
         )
 
-    def query(self, query):
+    def select(self, query):
         with self.conn as c:
             res = c.execute(query)
             real_colnames = self._get_colnames(query=query)
@@ -50,7 +50,7 @@ class DataBase:
             colnames = ",".join(colnames)
         else:
             colnames = "*"
-            real_colnames = self._get_colnames(table_name)
+            real_colnames = self._get_colnames(table_name=table_name)
 
         query = f"""select {colnames} from {table_name} {filter}"""
         if order:
