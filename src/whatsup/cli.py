@@ -14,17 +14,21 @@ def show():
 
 
 @app.command()
-def add(name: str, description: str = "", priority: int = 1):
+def add(name: str, priority: int = 1, deadline: int = 24):
     action = Actions()
-    action.create_task(
-        name=name, description=description, priority=priority
-    )  # add deadline
+    action.create_task(name=name, priority=priority, deadline=deadline)
 
 
 @app.command()
 def done(task_num: int):
     action = Actions()
     action.done_task(task_num)
+
+
+@app.command()
+def arc():
+    action = Actions()
+    print("\n".join(action.show_archived_tasks()))
 
 
 @app.command()

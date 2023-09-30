@@ -2,8 +2,6 @@
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
-import pandas as pd
-
 from whatsup.db import DataBase
 
 db = DataBase("current_tasks")
@@ -63,13 +61,16 @@ class Actions:
         self.map_id_to_num = {}
 
     def _make_task_list(self):
-        res, colnames = db.fetch_records("current_tasks")
-        df = pd.DataFrame(res, columns=colnames)  # consider using only sqllite3
-        df = df.sort_values(["priority", "date_inserted"], ascending=[False, True])
-        df = df.reset_index(drop=True)
-        df = df.reset_index(names=["task_num"])
-        df["task_num"] = df["task_num"] + 1
-        return df
+        res, colnames = db.fetch_records(
+            "current_tasks", order="priority desc, date_inserted", add_index=True
+        )
+        return res, colnames
+
+    def _make_archived_task_list(self):
+        res, colnames = db.fetch_records(
+            "archived_tasks", order="ts_archived desc", add_index=True
+        )
+        return res, colnames
 
     def init_task_table(self):
         InitDB().active_tasks()
@@ -97,20 +98,27 @@ class Actions:
             ["name", "deadline"],
             filter=f"id = {task_id}",
         )
-        res_df = pd.DataFrame(res, columns=columns)
         db.delete_record("current_tasks", filter=f"id = {task_id}")
         cols_insert = ["name", "deadline"]
+        idx_list = []
+        for idx, colname in enumerate(columns):
+            if colname in cols_insert:
+                idx_list.append(idx)
         db.add_record(
             "archived_tasks",
             ["reason"] + cols_insert,
-            ["done", *res_df[cols_insert].values[0]],
+            ["done", *[res[0][idx] for idx in idx_list]],
         )
 
     def task_num_to_id(self, task_num):
         """Get mapping task num to id (pk)"""
-        res, columns = self.add_task_num()
-        res_df = pd.DataFrame(res, columns=columns)
-        self.map_id_to_num = res_df.set_index("task_num").to_dict()["id"]
+        df, columns = db.fetch_records(
+            "current_tasks",
+            colnames=["id"],
+            order="priority desc, date_inserted",
+            add_index=True,
+        )
+        self.map_id_to_num = {int(idx): int(num) for idx, num in df}
         return self.map_id_to_num[int(task_num)]
 
     def edit_task(self, task_number, value):
@@ -124,20 +132,23 @@ class Actions:
             ["name", "deadline"],
             filter=f"id = {task_id}",
         )
-        res_df = pd.DataFrame(res, columns=columns)
-        db.delete_record("current_tasks", filter=f"id = {task_id}")
         cols_insert = ["name", "deadline"]
+        idx_list = []
+        for idx, colname in enumerate(columns):
+            if colname in cols_insert:
+                idx_list.append(idx)
+        db.delete_record("current_tasks", filter=f"id = {task_id}")
         db.add_record(
             "archived_tasks",
             ["reason"] + cols_insert,
-            ["deleted", *res_df[cols_insert].values[0]],
+            ["deleted", *[res[0][idx] for idx in idx_list]],
         )
 
     @staticmethod
-    def df_to_str(df, show_cols=None):
+    def df_to_str(df, colnames, show_cols=None):
         show_cols = show_cols or []
-        cols = df.columns
-        vals = df.values
+        cols = colnames
+        vals = df
         list_str = []
 
         def str_col(col, val):
@@ -150,9 +161,12 @@ class Actions:
         return list_str
 
     def show_tasks(self):
-        tasks_df = self._make_task_list()
-        tasks_df = tasks_df[["task_num", "name", "priority", "deadline"]]
-        return self.df_to_str(tasks_df, show_cols=["priority", "deadline"])
+        tasks_df, colnames = self._make_task_list()
+        # tasks_df = tasks_df[["task_num", "name", "priority", "deadline"]]
+        return self.df_to_str(tasks_df, colnames, show_cols=["priority", "deadline"])
+
+    def show_archived_tasks(self):
+        return self.df_to_str(*self._make_archived_task_list())
 
 
 if __name__ == "__main__":
@@ -169,7 +183,6 @@ if __name__ == "__main__":
     print()
     print("\n".join(action.show_tasks()))
     res, colnames = db.fetch_records("archived_tasks")
-    df = pd.DataFrame(res, columns=colnames)  # consider using only sqllite3
     print()
     print(res)
     # print(action.show_tasks())

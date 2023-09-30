@@ -42,9 +42,13 @@ class DataBase:
             return real_colnames
 
     def fetch_records(
-        self, table_name: str, colnames: list[str] = None, filter="", order=""
+        self,
+        table_name: str,
+        colnames: list[str] = None,
+        filter="",
+        order="",
+        add_index: bool = False,
     ):
-        filter = f"where {filter}" if filter else ""
         if colnames:
             real_colnames = colnames
             colnames = ",".join(colnames)
@@ -52,9 +56,15 @@ class DataBase:
             colnames = "*"
             real_colnames = self._get_colnames(table_name=table_name)
 
-        query = f"""select {colnames} from {table_name} {filter}"""
+        if add_index and order:
+            colnames = f"row_number() over (order by {order}) as idx, {colnames}"
+            real_colnames += ("rn",)
+
+        query = f"""select {colnames} from {table_name}"""
+        if filter:
+            query += f" where {filter} "
         if order:
-            query += f" order by {order}"
+            query += f" order by {order} "
         res = self._execute(query)
         return res.fetchall(), real_colnames  # add colnames probably
 
