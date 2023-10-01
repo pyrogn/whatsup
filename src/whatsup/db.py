@@ -58,7 +58,7 @@ class DataBase:
 
         if add_index and order:
             colnames = f"row_number() over (order by {order}) as idx, {colnames}"
-            real_colnames += ("rn",)
+            real_colnames = ("idx", *real_colnames)
 
         query = f"""select {colnames} from {table_name}"""
         if filter:

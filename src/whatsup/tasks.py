@@ -160,9 +160,20 @@ class Actions:
             list_str.append(". ".join(str_col(col, val) for col, val in zip(cols, row)))
         return list_str
 
+    def select_df(self, df, columns, select_order):
+        idx_cols = []
+        for col in select_order:
+            idx_cols.append(columns.index(col))
+        new_df = []
+        for row in df:
+            new_df.append([row[idx] for idx in idx_cols])
+        return new_df, select_order
+
     def show_tasks(self):
         tasks_df, colnames = self._make_task_list()
-        # tasks_df = tasks_df[["task_num", "name", "priority", "deadline"]]
+        tasks_df, colnames = self.select_df(
+            tasks_df, colnames, ["idx", "name", "priority", "deadline"]
+        )
         return self.df_to_str(tasks_df, colnames, show_cols=["priority", "deadline"])
 
     def show_archived_tasks(self):
