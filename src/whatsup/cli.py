@@ -1,3 +1,4 @@
+"""CLI logic"""
 import typer
 from whatsup.tasks import Actions, InitDB
 

@@ -48,6 +48,7 @@ class DataBase:
         filter="",
         order="",
         add_index: bool = False,
+        add_hours: bool = False,
     ):
         if colnames:
             real_colnames = colnames
@@ -55,6 +56,11 @@ class DataBase:
         else:
             colnames = "*"
             real_colnames = self._get_colnames(table_name=table_name)
+
+        if add_hours:
+            day_diff = "(julianday(deadline) - julianday(datetime('now','localtime')))"
+            colnames = f"{colnames}, round({day_diff} * 24, 1) hour"
+            real_colnames = (*real_colnames, "hour")
 
         if add_index and order:
             colnames = f"row_number() over (order by {order}) as idx, {colnames}"
@@ -66,7 +72,7 @@ class DataBase:
         if order:
             query += f" order by {order} "
         res = self._execute(query)
-        return res.fetchall(), real_colnames  # add colnames probably
+        return res.fetchall(), real_colnames
 
     def add_record(self, table_name, columns, values):
         query = (

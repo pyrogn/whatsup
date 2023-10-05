@@ -8,7 +8,7 @@ db = DataBase("current_tasks")
 
 
 @dataclass
-class Task:
+class Task:  # never used though
     name: str
     description: str
     date_inserted: datetime
@@ -62,7 +62,10 @@ class Actions:
 
     def _make_task_list(self):
         res, colnames = db.fetch_records(
-            "current_tasks", order="priority desc, date_inserted", add_index=True
+            "current_tasks",
+            order="priority desc, date_inserted",
+            add_index=True,
+            add_hours=True,
         )
         return res, colnames
 
@@ -172,9 +175,11 @@ class Actions:
     def show_tasks(self):
         tasks_df, colnames = self._make_task_list()
         tasks_df, colnames = self.select_df(
-            tasks_df, colnames, ["idx", "name", "priority", "deadline"]
+            tasks_df, colnames, ["idx", "name", "priority", "deadline", "hour"]
         )
-        return self.df_to_str(tasks_df, colnames, show_cols=["priority", "deadline"])
+        return self.df_to_str(
+            tasks_df, colnames, show_cols=["priority", "deadline", "hour"]
+        )
 
     def show_archived_tasks(self):
         return self.df_to_str(*self._make_archived_task_list())
