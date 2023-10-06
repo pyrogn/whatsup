@@ -4,23 +4,41 @@ from dataclasses import dataclass
 
 from whatsup.db import DataBase
 
-db = DataBase("current_tasks")
+db = DataBase("whatsup.db")  # change name after
 
 
 @dataclass
-class Task:  # never used though
+class Task:
+    idx: int
     name: str
-    description: str
-    date_inserted: datetime
+    deadline: str
     priority: int = 0
-    deadline: int = 24
 
     @property
     def is_expired(self):
-        return datetime.now() > self.date_inserted + timedelta(hours=self.deadline)
+        return datetime.now() > datetime.strptime(self.deadline, "%Y-%m-%d %H:%M:%S")
 
-    def __gt__(self, other):
-        return (self.priority, self.deadline) > (other.priority, other.deadline)
+    def __str__(self):
+        my_hour = (
+            datetime.strptime(self.deadline, "%Y-%m-%d %H:%M:%S") - datetime.now()
+        ).seconds / 3600
+        return (
+            f"{self.idx}. {self.name}. priority={self.priority} "
+            f"deadline={self.deadline} hour={my_hour:.1f}"
+        )
+
+
+@dataclass
+class ArcTask:
+    idx: int
+    name: str
+    reason: str
+    ts_archived: str
+    deadline: str
+    priority: int = 1
+
+    def __str__(self):
+        return f"{self.idx}. {self.name}. reason={self.reason} deadline={self.deadline}"
 
 
 class InitDB:
@@ -65,13 +83,12 @@ class Actions:
             "current_tasks",
             order="priority desc, date_inserted",
             add_index=True,
-            add_hours=True,
         )
         return res, colnames
 
-    def _make_archived_task_list(self):
+    def _make_archived_task_list(self, limit):
         res, colnames = db.fetch_records(
-            "archived_tasks", order="ts_archived desc", add_index=True
+            "archived_tasks", order="ts_archived desc", add_index=True, limit=limit
         )
         return res, colnames
 
@@ -80,41 +97,33 @@ class Actions:
         InitDB().archived_tasks()
 
     def create_task(self, **values):
+        # make a task constructor?
         values["deadline"] = (
             datetime.now() + timedelta(hours=values.get("deadline", 24))
         ).strftime("%Y-%m-%d %H:%M:%S")
         db.add_record("current_tasks", list(values.keys()), list(values.values()))
 
-    def add_task_num(self):
-        res, columns = db.select(
-            """select *, row_number() over (order by priority desc, deadline) task_num
-        from current_tasks
-        order by task_num"""
-        )
-        return res, columns
-
-    def done_task(self, task_number: int):
-        # res = db.fetch_records("current_tasks", filter=f"task_number = {task_number}")
+    def done_task(self, task_number: int) -> None:
         task_id = self.task_num_to_id(task_number)
         res, columns = db.fetch_records(
             "current_tasks",
             ["name", "deadline"],
             filter=f"id = {task_id}",
         )
-        db.delete_record("current_tasks", filter=f"id = {task_id}")
-        cols_insert = ["name", "deadline"]
-        idx_list = []
-        for idx, colname in enumerate(columns):
-            if colname in cols_insert:
-                idx_list.append(idx)
+        row = self.select_df(res, columns, ["name", "deadline"])[0]
+        row["reason"] = "done"
         db.add_record(
             "archived_tasks",
-            ["reason"] + cols_insert,
-            ["done", *[res[0][idx] for idx in idx_list]],
+            list(row.keys()),
+            list(row.values()),
         )
 
-    def task_num_to_id(self, task_num):
-        """Get mapping task num to id (pk)"""
+        db.delete_record("current_tasks", filter=f"id = {task_id}")
+
+    def task_num_to_id(self, task_num: int) -> int:
+        """Get mapping task num to id (pk).
+        Another option: add idx and filter directly on this column
+            without extra read"""
         df, columns = db.fetch_records(
             "current_tasks",
             colnames=["id"],
@@ -124,72 +133,71 @@ class Actions:
         self.map_id_to_num = {int(idx): int(num) for idx, num in df}
         return self.map_id_to_num[int(task_num)]
 
-    def edit_task(self, task_number, value):
+    def edit_task(self, task_number: int, value: dict) -> None:
         task_id = self.task_num_to_id(task_number)
         db.update_record("current_tasks", value=value, filter=f"id = {task_id}")
 
-    def remove_task(self, task_number):
+    def remove_task(self, task_number: int) -> None:
         task_id = self.task_num_to_id(task_number)
         res, columns = db.fetch_records(
             "current_tasks",
             ["name", "deadline"],
             filter=f"id = {task_id}",
         )
-        cols_insert = ["name", "deadline"]
-        idx_list = []
-        for idx, colname in enumerate(columns):
-            if colname in cols_insert:
-                idx_list.append(idx)
-        db.delete_record("current_tasks", filter=f"id = {task_id}")
+        row = self.select_df(res, columns, ["name", "deadline"])[0]
+        row["reason"] = "deleted"
         db.add_record(
             "archived_tasks",
-            ["reason"] + cols_insert,
-            ["deleted", *[res[0][idx] for idx in idx_list]],
+            list(row.keys()),
+            list(row.values()),
         )
 
+        db.delete_record("current_tasks", filter=f"id = {task_id}")
+
     @staticmethod
-    def df_to_str(df, colnames, show_cols=None):
-        show_cols = show_cols or []
-        cols = colnames
+    def df_to_str(df: list[dict], task_type) -> str:
         vals = df
         list_str = []
 
-        def str_col(col, val):
-            if col not in show_cols:
-                return str(val)
-            return f"{col}: {val}"
-
         for row in vals:
-            list_str.append(". ".join(str_col(col, val) for col, val in zip(cols, row)))
-        return list_str
+            list_str.append(str(task_type(**row)))
+        return "\n".join(list_str)
 
-    def select_df(self, df, columns, select_order):
+    @staticmethod
+    def select_df(
+        df: list[tuple], columns: list[str], select_order: list[str]
+    ) -> list[dict]:
         idx_cols = []
         for col in select_order:
+            assert col in columns, f"{col} not in {columns}"
             idx_cols.append(columns.index(col))
         new_df = []
         for row in df:
-            new_df.append([row[idx] for idx in idx_cols])
-        return new_df, select_order
+            new_df.append(dict(zip(select_order, [row[idx] for idx in idx_cols])))
+        return new_df
 
-    def show_tasks(self):
+    def show_tasks(self) -> str:
         tasks_df, colnames = self._make_task_list()
-        tasks_df, colnames = self.select_df(
-            tasks_df, colnames, ["idx", "name", "priority", "deadline", "hour"]
+        tasks_df = self.select_df(
+            tasks_df, colnames, ["idx", "name", "priority", "deadline"]
         )
-        return self.df_to_str(
-            tasks_df, colnames, show_cols=["priority", "deadline", "hour"]
-        )
+        return self.df_to_str(tasks_df, task_type=Task)
 
-    def show_archived_tasks(self):
-        return self.df_to_str(*self._make_archived_task_list())
+    def show_archived_tasks(self, limit: str = 10) -> str:
+        tasks_df, colnames = self._make_archived_task_list(limit=limit)
+        tasks_df = self.select_df(
+            tasks_df,
+            colnames,
+            # add priority
+            ["idx", "name", "deadline", "ts_archived", "reason"],
+        )
+        return self.df_to_str(tasks_df, task_type=ArcTask)
 
 
 if __name__ == "__main__":
     action = Actions()
     action.create_task(name="task 1", priority=3)
     action.create_task(name="task 2", description="Descr2")
-    print(action.add_task_num())
     # print(action._make_task_list())
     print("\n".join(action.show_tasks()))
     action.edit_task("2", {"name": "task2 edited"})

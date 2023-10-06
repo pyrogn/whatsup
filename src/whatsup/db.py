@@ -1,7 +1,8 @@
 """Persistence layer"""
 import sqlite3
 
-conn = sqlite3.connect("current_tasks")  # make it constant and maybe somewhere global
+# make it constant and maybe store in config
+conn = sqlite3.connect("whatsup.db")
 
 
 class DataBase:
@@ -22,9 +23,10 @@ class DataBase:
             c.executemany(query, data)
 
     def create_table(self, table_name=None, schema: list[str] = None):
+        schema_str = ", ".join(schema)
         self._execute(
             f"""CREATE TABLE if not exists {table_name} (
-                    {", ".join(schema)}
+                {schema_str}
             )""",
         )
 
@@ -48,7 +50,7 @@ class DataBase:
         filter="",
         order="",
         add_index: bool = False,
-        add_hours: bool = False,
+        limit: int = None,
     ):
         if colnames:
             real_colnames = colnames
@@ -56,11 +58,6 @@ class DataBase:
         else:
             colnames = "*"
             real_colnames = self._get_colnames(table_name=table_name)
-
-        if add_hours:
-            day_diff = "(julianday(deadline) - julianday(datetime('now','localtime')))"
-            colnames = f"{colnames}, round({day_diff} * 24, 1) hour"
-            real_colnames = (*real_colnames, "hour")
 
         if add_index and order:
             colnames = f"row_number() over (order by {order}) as idx, {colnames}"
@@ -71,6 +68,8 @@ class DataBase:
             query += f" where {filter} "
         if order:
             query += f" order by {order} "
+        if limit:
+            query += f" limit {limit}"
         res = self._execute(query)
         return res.fetchall(), real_colnames
 
@@ -91,9 +90,9 @@ class DataBase:
         filter="",
     ):
         values = [f"{i} = {j!r}" for i, j in value.items()]
-        filter = f"where {filter}" if filter else ""
-        query = f"""update {table_name} set {','.join(values)}
-            {filter}"""
+        query = f"""update {table_name} set {','.join(values)}"""
+        if filter:
+            query += f"where {filter}"
         self._execute(query)
 
     def truncate_table(self, table_name):
