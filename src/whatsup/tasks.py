@@ -197,15 +197,17 @@ class Actions:
 if __name__ == "__main__":
     action = Actions()
     action.create_task(name="task 1", priority=3)
-    action.create_task(name="task 2", description="Descr2")
+    action.create_task(
+        name="task 2",
+    )
     # print(action._make_task_list())
-    print("\n".join(action.show_tasks()))
+    print(action.show_tasks())
     action.edit_task("2", {"name": "task2 edited"})
-    print("\n".join(action.show_tasks()))
+    print(action.show_tasks())
     action.done_task(1)
     action.remove_task(1)
     print()
-    print("\n".join(action.show_tasks()))
+    print(action.show_tasks())
     res, colnames = db.fetch_records("archived_tasks")
     print()
     print(res)
