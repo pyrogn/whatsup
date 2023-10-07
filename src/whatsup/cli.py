@@ -41,6 +41,17 @@ def arc():
 
 
 @app.command()
+def upd(task_num, attr, value):
+    raise NotImplementedError
+
+
+@app.command()
+def init():
+    """Init db in stable place to be available globally"""
+    raise NotImplementedError
+
+
+@app.command()
 def clean():
     init_db = InitTaskTables(db, is_drop=True)
     init_db.archived_tasks()

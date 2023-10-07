@@ -13,7 +13,7 @@ class ActiveTask:
     idx: int
     name: str
     deadline: str
-    priority: int = 0
+    priority: int = 1
 
     @property
     def is_expired(self):
@@ -21,14 +21,10 @@ class ActiveTask:
 
     @property
     def hours(self):
-        hours_left = round(
-            (
-                datetime.strptime(self.deadline, "%Y-%m-%d %H:%M:%S") - datetime.now()
-            ).total_seconds()
-            / 3600,
-            1,
-        )
-        return hours_left
+        hours_left = (
+            datetime.strptime(self.deadline, "%Y-%m-%d %H:%M:%S") - datetime.now()
+        ).total_seconds() / 3600
+        return round(hours_left, 1)
 
     def __str__(self):
         return f"{self.idx:<2}|{self.name:<30}|{self.priority:<1}|{self.hours:.1f}"
@@ -77,10 +73,12 @@ class TasksPrettyTable:
         return self._present_tasks_general(header)
 
     def _present_arc_tasks(self) -> str:
-        header = ["idx", "name", "reason", "deadline"]
+        header = ["idx", "name", "priority", "reason", "deadline"]
         return self._present_tasks_general(header)
 
     def _present_tasks_general(self, header):
+        if not self.tasks:
+            return "No tasks"
         max_lengths = self._find_max_len_task_attr(self.tasks, header)
         output = [
             "|".join([f"{i:<{max_lengths[i]}}" for i in header]),
@@ -88,7 +86,7 @@ class TasksPrettyTable:
         ]
         for task in self.tasks:
             st = "|".join(
-                [f"{getattr(task, attr):<{max_lengths[attr]}}" for attr in header]
+                [f"{getattr(task, attr) or '':<{max_lengths[attr]}}" for attr in header]
             )
             output.append(st)
         return "\n".join(output)
@@ -107,6 +105,7 @@ class InitTaskTables:
         schema = [
             "id integer primary key autoincrement not null",
             "ts_archived timestamp default current_timestamp",
+            "priority integer",
             "reason varchar",
             "name varchar",
             "deadline timestamp",
@@ -155,24 +154,10 @@ class TaskAction:
         values["deadline"] = (
             datetime.now() + timedelta(hours=values.get("deadline", 24))
         ).strftime("%Y-%m-%d %H:%M:%S")
-        self.db.add_record("current_tasks", list(values.keys()), list(values.values()))
+        self.db.add_record("current_tasks", values)
 
     def done_task(self, task_number: int) -> None:
-        task_id = self.task_num_to_id(task_number)
-        res, columns = self.db.fetch_records(
-            "current_tasks",
-            ["name", "deadline"],
-            filter=f"id = {task_id}",
-        )
-        row = self.select_df(res, columns, ["name", "deadline"])[0]
-        row["reason"] = "done"
-        self.db.add_record(
-            "archived_tasks",
-            list(row.keys()),
-            list(row.values()),
-        )
-
-        self.db.delete_record("current_tasks", filter=f"id = {task_id}")
+        self._move_active_task_to_arc(task_number, "done")
 
     def task_num_to_id(self, task_num: int) -> int:
         """Get mapping task num to id (pk).
@@ -192,19 +177,19 @@ class TaskAction:
         self.db.update_record("current_tasks", value=value, filter=f"id = {task_id}")
 
     def remove_task(self, task_number: int) -> None:
+        self._move_active_task_to_arc(task_number, "rm")
+
+    def _move_active_task_to_arc(self, task_number, reason: Literal["rm", "done"]):
         task_id = self.task_num_to_id(task_number)
         res, columns = self.db.fetch_records(
             "current_tasks",
-            ["name", "deadline"],
+            ["name", "deadline", "priority"],
             filter=f"id = {task_id}",
         )
-        row = self.select_df(res, columns, ["name", "deadline"])[0]
-        row["reason"] = "deleted"
-        self.db.add_record(
-            "archived_tasks",
-            list(row.keys()),
-            list(row.values()),
-        )
+        row = self.select_df(res, columns, ["name", "deadline", "priority"])[0]
+        map_reason = {"rm": "deleted", "done": "done"}
+        row["reason"] = map_reason[reason]
+        self.db.add_record("archived_tasks", row)
 
         self.db.delete_record("current_tasks", filter=f"id = {task_id}")
 
@@ -218,15 +203,16 @@ class TaskAction:
 
     @staticmethod
     def select_df(
-        df: list[tuple], columns: list[str], select_order: list[str]
+        df: list[tuple], columns: list[str], subset_columns: list[str]
     ) -> list[dict]:
+        """Convert list of row and columns to list of dict"""
         idx_cols = []
-        for col in select_order:
+        for col in subset_columns:
             assert col in columns, f"{col} not in {columns}"
             idx_cols.append(columns.index(col))
         new_df = []
         for row in df:
-            new_df.append(dict(zip(select_order, [row[idx] for idx in idx_cols])))
+            new_df.append(dict(zip(subset_columns, [row[idx] for idx in idx_cols])))
         return new_df
 
     def show_tasks(self) -> str:
@@ -241,8 +227,7 @@ class TaskAction:
         tasks_df = self.select_df(
             tasks_df,
             colnames,
-            # add priority
-            ["idx", "name", "deadline", "ts_archived", "reason"],
+            ["idx", "name", "deadline", "ts_archived", "priority", "reason"],
         )
         return self.df_to_str(tasks_df, task_type="arc")
 

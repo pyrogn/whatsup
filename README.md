@@ -1,4 +1,4 @@
-# whatsup - Simple task tracker (WIP)
+# whatsup - Simple task tracker for one day (WIP)
 
 [![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm.fming.dev)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -10,7 +10,10 @@
 - Priority of daily tasks is set of **{1, 2, 3}**, so you have clear order of tasks
 - Program is running in **shell**. No registration, no internet, no bloated browser
 
-## Usage
+### What problem does this tool solve
+<img src="./img/whatsup.png" width="400"/>
+
+## Installation
 
 1. A good way - install using pipx as a global package in an isolated environment. command: `pipx install something??`
 2. Rye is also capable of installing isolated global packages, but I haven't tried it

@@ -10,9 +10,12 @@ class DataBase:
     def __del__(self):
         self.conn.close()
 
-    def _execute(self, query, data=""):
+    def _execute(self, query, data=None):
         with self.conn as c:
-            res = c.execute(query, data)
+            if data:
+                res = c.execute(query, data)
+            else:
+                res = c.execute(query)
             return res
 
     def _executemany(self, query, data=""):
@@ -28,6 +31,7 @@ class DataBase:
         )
 
     def select(self, query):
+        """Run custom query"""
         with self.conn as c:
             res = c.execute(query)
             real_colnames = self._get_colnames(query=query)
@@ -70,12 +74,12 @@ class DataBase:
         res = self._execute(query)
         return res.fetchall(), real_colnames
 
-    def add_record(self, table_name, columns, values):
+    def add_record(self, table_name, values: dict):
         query = (
-            f"insert into {table_name} ({','.join(columns)}) "
-            f"values ({', '.join(['?'] * len(values))})"
+            f"insert into {table_name} ({','.join(values)}) "
+            f"values ({', '.join(['?'] * len(values.values()))})"
         )
-        self._execute(query, values)
+        self._execute(query, list(values.values()))
 
     def delete_record(self, table_name, filter: str):
         self._execute(f"delete from {table_name} where {filter}")
