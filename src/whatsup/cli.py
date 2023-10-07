@@ -1,13 +1,13 @@
 """CLI logic"""
 import typer
-from whatsup.tasks import Actions, InitDB
+from whatsup.tasks import TaskAction, InitTaskTables, db
 from typing_extensions import Annotated
 
 
 app = typer.Typer()
 quick_app = typer.Typer()
 
-action = Actions()
+action = TaskAction(db)
 
 
 @quick_app.callback(invoke_without_command=True)
@@ -42,7 +42,7 @@ def arc():
 
 @app.command()
 def clean():
-    init_db = InitDB(is_drop=True)
+    init_db = InitTaskTables(db, is_drop=True)
     init_db.archived_tasks()
     init_db.active_tasks()
 

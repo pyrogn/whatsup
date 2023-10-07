@@ -1,9 +1,6 @@
 """Persistence layer"""
 import sqlite3
 
-# make it constant and maybe store in config
-conn = sqlite3.connect("whatsup.db")
-
 
 class DataBase:
     def __init__(self, schema_name):
