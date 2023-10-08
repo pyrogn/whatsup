@@ -101,7 +101,7 @@ class InitTaskTables:
             self.db.drop_table("archived_tasks")
         schema = [
             "id integer primary key autoincrement not null",
-            "ts_archived timestamp default current_timestamp",
+            "ts_archived timestamp default (datetime('now','localtime'))",
             "priority integer",
             "reason varchar",
             "name varchar",
@@ -115,7 +115,7 @@ class InitTaskTables:
         schema = [
             "id integer primary key autoincrement not null",
             "priority integer default 1",
-            "date_inserted timestamp default current_timestamp",
+            "date_inserted timestamp default (datetime('now','localtime'))",
             "deadline timestamp",
             "name varchar",
         ]

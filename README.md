@@ -54,6 +54,8 @@ whatsup arc
 
 ## Demo
 
+I know, there's a bug in column ts_archived displaying UTC time, I fixed that
+
 https://github.com/pyrogn/whatsup/assets/60060559/ee3ae3aa-0a67-44da-a899-c6d6f343a960
 
 ## TODO
