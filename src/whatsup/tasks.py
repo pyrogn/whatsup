@@ -26,9 +26,6 @@ class ActiveTask:
         ).total_seconds() / 3600
         return round(hours_left, 1)
 
-    def __str__(self):
-        return f"{self.idx:<2}|{self.name:<30}|{self.priority:<1}|{self.hours:.1f}"
-
 
 @dataclass
 class ArcTask:
@@ -38,11 +35,6 @@ class ArcTask:
     ts_archived: str
     deadline: str
     priority: int = 1
-
-    def __str__(self):
-        return (
-            f"{self.idx}. {self.name}. reason={self.reason} deadline={self.deadline}"
-        )
 
 
 @dataclass
@@ -75,7 +67,7 @@ class TasksPrettyTable:
         return self._present_tasks_general(header)
 
     def _present_arc_tasks(self) -> str:
-        header = ["idx", "name", "priority", "reason", "deadline"]
+        header = ["idx", "name", "priority", "reason", "ts_archived", "deadline"]
         return self._present_tasks_general(header)
 
     def _present_tasks_general(self, header):
@@ -136,7 +128,7 @@ class TaskAction:
         self.init_task_table()
         self.map_id_to_num = {}
 
-    def _make_task_list(self):
+    def _make_active_task_list(self):
         res = self.db.fetch_records(
             "current_tasks",
             colnames=["name", "priority", "deadline"],
@@ -206,14 +198,12 @@ class TaskAction:
 
     @staticmethod
     def df_to_str(df: list[dict], task_type: Literal["active", "arc"]) -> str:
-        task_collection = []
         task_class_map = {"active": ActiveTask, "arc": ArcTask}
-        for row in df:
-            task_collection.append(task_class_map[task_type](**row))
+        task_collection = [task_class_map[task_type](**row) for row in df]
         return TasksPrettyTable(task_type, task_collection).present_tasks()
 
     def show_tasks(self) -> str:
-        tasks_df = self._make_task_list()
+        tasks_df = self._make_active_task_list()
         return self.df_to_str(tasks_df, task_type="active")
 
     def show_archived_tasks(self, limit: int = 10) -> str:

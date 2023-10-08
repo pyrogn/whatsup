@@ -1,3 +1,4 @@
+"""Tests for managing db"""
 import pytest
 import sqlite3
 import tempfile
@@ -14,24 +15,28 @@ def get_connection():
     tmpfilename.close()
 
 
+query_tables = """SELECT name FROM sqlite_master
+    WHERE type='table' and not name like 'sqlite%'"""
+
+
+def cnt_tables(conn, query=query_tables):
+    return len(conn.execute(query).fetchall())
+
+
 def test_create_table(get_connection):
     """Test that we can create tables and drop them"""
     conn, db_name = get_connection
     db = DataBase(db_name)
     db.create_table("test_table1", ["col1 int", "col2 varchar"])
     db.create_table("test_table2", ["col1 int", "col2 varchar"])
-    query = """SELECT name FROM sqlite_master WHERE type='table'"""
 
-    def cnt_tables(query=query, conn=conn):
-        return len(conn.execute(query).fetchall())
-
-    assert cnt_tables() == 2
+    assert cnt_tables(conn) == 2
     db.truncate_table("test_table1")  # doesn't delete table
-    assert cnt_tables() == 2
+    assert cnt_tables(conn) == 2
     db.drop_table("test_table1")
-    assert cnt_tables() == 1
+    assert cnt_tables(conn) == 1
     db.drop_table("test_table2")
-    assert cnt_tables() == 0
+    assert cnt_tables(conn) == 0
 
 
 def test_init_default_tables(get_connection):
@@ -41,15 +46,10 @@ def test_init_default_tables(get_connection):
     init_tables = InitTaskTables(db)
     init_tables.archived_tasks()
     init_tables.active_tasks()
-    query = """SELECT name FROM sqlite_master
-    WHERE type='table' and not name like 'sqlite%'"""
 
-    def cnt_tables(query=query, conn=conn):
-        return len(conn.execute(query).fetchall())
-
-    assert cnt_tables() == 2
-    InitTaskTables(db, is_drop=True)  # rewrite
-    assert cnt_tables() == 2
+    assert cnt_tables(conn) == 2
+    InitTaskTables(db, is_drop=True)  # rewrite, no new tables
+    assert cnt_tables(conn) == 2
 
 
 def test_add_record(get_connection):
@@ -64,12 +64,22 @@ def test_add_record(get_connection):
     db.add_record("test_table1", {"col1": 1})
     assert len(fetch_from_table("test_table1")) == 1
     db.add_record("test_table1", {"col1": 2})
+
+    # test fetch records separately
+    assert db.fetch_records("test_table1") == [{"col1": 1}, {"col1": 2}]
     assert len(fetch_from_table("test_table1")) == 2
+    # test update record separately
+    db.update_record("test_table1", value={"col1": 100}, filter="col1=1")
+    assert db.fetch_records("test_table1") == [{"col1": 100}, {"col1": 2}]
+    # test delete record separately
+    db.delete_record("test_table1", filter="col1=2")
+    assert db.fetch_records("test_table1") == [{"col1": 100}]
+
     db.truncate_table("test_table1")
     assert len(fetch_from_table("test_table1")) == 0
 
 
-def test_select_fetch():
+def test_fetch():
     ...
 
 

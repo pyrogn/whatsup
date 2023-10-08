@@ -1,16 +1,22 @@
 """Persistence layer"""
 import sqlite3
+from sqlite3 import Cursor
 
 
 class DataBase:
     def __init__(self, schema_name):
+        """schema_name - name of db file"""
         self.schema_name = schema_name
         self.conn = sqlite3.connect(self.schema_name)
 
     def __del__(self):
         self.conn.close()
 
-    def _execute(self, query, data=None):
+    def _execute(
+        self,
+        query: str,
+        data: list[str] | None = None,
+    ) -> Cursor:
         with self.conn as c:
             if data:
                 return c.execute(query, data)
@@ -20,7 +26,7 @@ class DataBase:
         with self.conn as c:
             c.executemany(query, data)
 
-    def create_table(self, table_name: str, schema: list[str]):
+    def create_table(self, table_name: str, schema: list[str]) -> None:
         schema_str = ", ".join(schema)
         self._execute(
             f"""CREATE TABLE if not exists {table_name} (
@@ -28,27 +34,26 @@ class DataBase:
             )""",
         )
 
-    def select(self, query):
+    def select(self, query: str) -> list[dict]:
         """Run custom query"""
-        with self.conn as c:
-            res = c.execute(query)
-            real_colnames = self._get_colnames(query=query)
-            return res.fetchall(), real_colnames
+        res = self._execute(query)
+        real_colnames = self._get_colnames(query=query)
+        return [dict(zip(real_colnames, row)) for row in res.fetchall()]
 
-    def _get_colnames(self, table_name=None, query=None):
+    def _get_colnames(self, table_name: str = "", query: str = "") -> list[str]:
+        """Get columns from the table or from query to the table"""
         with self.conn as c:
             table_name_query = f"select * from {table_name}"
             query = query or table_name_query
             real_colnames = next(zip(*c.execute(query).description))
-            print(type(real_colnames))
             return real_colnames
 
     def fetch_records(
         self,
         table_name: str,
         colnames: list[str] | None = None,
-        filter="",
-        order="",
+        filter: str = "",
+        order: str = "",
         add_index: bool = False,
         limit: int | None = None,
     ) -> list[dict]:
@@ -76,37 +81,37 @@ class DataBase:
         res = self._execute(query)
         return [dict(zip(real_colnames, row)) for row in res.fetchall()]
 
-    def add_record(self, table_name, values: dict):
+    def add_record(self, table_name: str, values: dict) -> None:
         query = (
             f"insert into {table_name} ({','.join(values)}) "
             f"values ({', '.join(['?'] * len(values.values()))})"
         )
         self._execute(query, list(values.values()))
 
-    def delete_record(self, table_name, filter: str):
+    def delete_record(self, table_name: str, filter: str) -> None:
         self._execute(f"delete from {table_name} where {filter}")
 
     def update_record(
         self,
-        table_name,
+        table_name: str,
         value: dict,
-        filter="",
-    ):
-        values = [f"{i} = {j!r}" for i, j in value.items()]
-        query = f"""update {table_name} set {','.join(values)}"""
+        filter: str = "",
+    ) -> None:
+        values_query = ",".join([f"{i} = {j!r}" for i, j in value.items()])
+        query = f"""update {table_name} set {values_query}"""
         if filter:
-            query += f"where {filter}"
+            query += f" where {filter} "
         self._execute(query)
 
-    def truncate_table(self, table_name):
+    def truncate_table(self, table_name: str) -> None:
         self._execute(f"delete from {table_name}")
 
-    def drop_table(self, table_name):
+    def drop_table(self, table_name: str) -> None:
         self._execute(f"drop table if exists {table_name}")
 
 
 if __name__ == "__main__":
-    db = DataBase("current_tasks")
+    db = DataBase("whatsup.db")
     db.create_table("asdf2", ["i integer"])
     db.truncate_table("asdf2")
     # db.add_record("asdf2", ["i"], [1, 2, 3, -98])

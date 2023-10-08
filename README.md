@@ -55,7 +55,7 @@ whatsup arc
 Here will be a quick demonstration of features
 
 ## TODO
-- [ ] Add basic tests
+- [x] Add basic tests
 - [ ] Add daily stats on (in)completed tasks
 - [ ] Make all tasks functionality available in CLI
 - [ ] Make location of db stable and cross-platform
