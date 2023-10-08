@@ -49,7 +49,8 @@ whatsup arc
 3. [Install PDM](https://pdm.fming.dev/latest/#recommended-installation-method)
 4. `pdm install`
 5. `pre-commit install`
-6. **Merge with main branch using PR**
+6. `pipx install --editable .` to actually use this tool while editing source code
+7. **Merge with main branch using PR**
 
 ## Demo
 
