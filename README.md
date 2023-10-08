@@ -52,7 +52,8 @@ whatsup arc
 6. **Merge with main branch using PR**
 
 ## Demo
-Here will be a quick demonstration of features
+
+https://github.com/pyrogn/whatsup/assets/60060559/ee3ae3aa-0a67-44da-a899-c6d6f343a960
 
 ## TODO
 - [x] Add basic tests
