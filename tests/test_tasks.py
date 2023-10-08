@@ -21,10 +21,10 @@ def test_create_task(create_db):
     for i in range(n_tasks):
         action.create_task(name=f"test_task{i}")
     db = DataBase(db_name)
-    res, columns = db.fetch_records("current_tasks")
+    res = db.fetch_records("current_tasks")
     assert len(res) == n_tasks
     db.truncate_table("current_tasks")
-    res, columns = db.fetch_records("current_tasks")
+    res = db.fetch_records("current_tasks")
     assert not len(res)
 
 
@@ -38,11 +38,11 @@ def test_done_task(create_db):
     for i in range(n_tasks):
         action.create_task(name=f"test_task{i}")
     db = DataBase(db_name)
-    res, columns = db.fetch_records("current_tasks")
+    res = db.fetch_records("current_tasks")
     assert len(res) == n_tasks
     for _ in range(n_tasks):
         action.done_task(1)
-    res, columns = db.fetch_records("current_tasks")
+    res = db.fetch_records("current_tasks")
     assert not len(res)
 
 

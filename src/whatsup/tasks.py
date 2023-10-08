@@ -40,7 +40,9 @@ class ArcTask:
     priority: int = 1
 
     def __str__(self):
-        return f"{self.idx}. {self.name}. reason={self.reason} deadline={self.deadline}"
+        return (
+            f"{self.idx}. {self.name}. reason={self.reason} deadline={self.deadline}"
+        )
 
 
 @dataclass
@@ -86,7 +88,10 @@ class TasksPrettyTable:
         ]
         for task in self.tasks:
             st = "|".join(
-                [f"{getattr(task, attr) or '':<{max_lengths[attr]}}" for attr in header]
+                [
+                    f"{getattr(task, attr) or '':<{max_lengths[attr]}}"
+                    for attr in header
+                ]
             )
             output.append(st)
         return "\n".join(output)
@@ -132,18 +137,23 @@ class TaskAction:
         self.map_id_to_num = {}
 
     def _make_task_list(self):
-        res, colnames = self.db.fetch_records(
+        res = self.db.fetch_records(
             "current_tasks",
+            colnames=["name", "priority", "deadline"],
             order="priority desc, date_inserted",
             add_index=True,
         )
-        return res, colnames
+        return res
 
     def _make_archived_task_list(self, limit):
-        res, colnames = self.db.fetch_records(
-            "archived_tasks", order="ts_archived desc", add_index=True, limit=limit
+        res = self.db.fetch_records(
+            "archived_tasks",
+            colnames=["name", "deadline", "ts_archived", "priority", "reason"],
+            order="ts_archived desc",
+            add_index=True,
+            limit=limit,
         )
-        return res, colnames
+        return res
 
     def init_task_table(self):
         InitTaskTables(self.db).active_tasks()
@@ -163,13 +173,13 @@ class TaskAction:
         """Get mapping task num to id (pk).
         Another option: add idx and filter directly on this column
             without extra read"""
-        df, columns = self.db.fetch_records(
+        df = self.db.fetch_records(
             "current_tasks",
             colnames=["id"],
             order="priority desc, date_inserted",
             add_index=True,
         )
-        self.map_id_to_num = {int(idx): int(num) for idx, num in df}
+        self.map_id_to_num = {row["idx"]: row["id"] for row in df}
         return self.map_id_to_num[int(task_num)]
 
     def edit_task(self, task_number: int, value: dict) -> None:
@@ -179,14 +189,15 @@ class TaskAction:
     def remove_task(self, task_number: int) -> None:
         self._move_active_task_to_arc(task_number, "rm")
 
-    def _move_active_task_to_arc(self, task_number, reason: Literal["rm", "done"]):
+    def _move_active_task_to_arc(
+        self, task_number: int, reason: Literal["rm", "done"]
+    ):
         task_id = self.task_num_to_id(task_number)
-        res, columns = self.db.fetch_records(
+        row = self.db.fetch_records(
             "current_tasks",
             ["name", "deadline", "priority"],
             filter=f"id = {task_id}",
-        )
-        row = self.select_df(res, columns, ["name", "deadline", "priority"])[0]
+        )[0]
         map_reason = {"rm": "deleted", "done": "done"}
         row["reason"] = map_reason[reason]
         self.db.add_record("archived_tasks", row)
@@ -201,34 +212,12 @@ class TaskAction:
             task_collection.append(task_class_map[task_type](**row))
         return TasksPrettyTable(task_type, task_collection).present_tasks()
 
-    @staticmethod
-    def select_df(
-        df: list[tuple], columns: list[str], subset_columns: list[str]
-    ) -> list[dict]:
-        """Convert list of row and columns to list of dict"""
-        idx_cols = []
-        for col in subset_columns:
-            assert col in columns, f"{col} not in {columns}"
-            idx_cols.append(columns.index(col))
-        new_df = []
-        for row in df:
-            new_df.append(dict(zip(subset_columns, [row[idx] for idx in idx_cols])))
-        return new_df
-
     def show_tasks(self) -> str:
-        tasks_df, colnames = self._make_task_list()
-        tasks_df = self.select_df(
-            tasks_df, colnames, ["idx", "name", "priority", "deadline"]
-        )
+        tasks_df = self._make_task_list()
         return self.df_to_str(tasks_df, task_type="active")
 
-    def show_archived_tasks(self, limit: str = 10) -> str:
-        tasks_df, colnames = self._make_archived_task_list(limit=limit)
-        tasks_df = self.select_df(
-            tasks_df,
-            colnames,
-            ["idx", "name", "deadline", "ts_archived", "priority", "reason"],
-        )
+    def show_archived_tasks(self, limit: int = 10) -> str:
+        tasks_df = self._make_archived_task_list(limit=limit)
         return self.df_to_str(tasks_df, task_type="arc")
 
 
@@ -246,9 +235,9 @@ if __name__ == "__main__":
     action.remove_task(1)
     print()
     print(action.show_tasks())
-    res, colnames = db.fetch_records("archived_tasks")
-    print()
-    print(res)
+    # res, colnames = db.fetch_records("archived_tasks")
+    # print()
+    # print(res)
     # print(action.show_tasks())
     # action.remove_task(1)
     # action.create_task("task 3")

@@ -33,3 +33,36 @@ type = [
     "mypy>=1.5.1",
     "pyright>=1.1.327",
 ]
+
+[tool.black]
+line-length = 85
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+# Same as Black.
+line-length = 85
+src = ['src', 'tests']
+select = ["E", "F"] #, "C4", "COM", "D1", "UP", "PT", "SIM", "SLF001", "FBT", "RUF", "RET", "I", "PLR"]
+ignore = []
+fixable = ["ALL"]
+
+[tool.pyright]
+include = ["src", "tests"]
+
+pythonVersion = "3.11"
+
+[tool.mypy]
+include = ["src", "tests"]

@@ -13,16 +13,14 @@ class DataBase:
     def _execute(self, query, data=None):
         with self.conn as c:
             if data:
-                res = c.execute(query, data)
-            else:
-                res = c.execute(query)
-            return res
+                return c.execute(query, data)
+            return c.execute(query)
 
     def _executemany(self, query, data=""):
         with self.conn as c:
             c.executemany(query, data)
 
-    def create_table(self, table_name=None, schema: list[str] = None):
+    def create_table(self, table_name: str, schema: list[str]):
         schema_str = ", ".join(schema)
         self._execute(
             f"""CREATE TABLE if not exists {table_name} (
@@ -42,37 +40,41 @@ class DataBase:
             table_name_query = f"select * from {table_name}"
             query = query or table_name_query
             real_colnames = next(zip(*c.execute(query).description))
+            print(type(real_colnames))
             return real_colnames
 
     def fetch_records(
         self,
         table_name: str,
-        colnames: list[str] = None,
+        colnames: list[str] | None = None,
         filter="",
         order="",
         add_index: bool = False,
-        limit: int = None,
-    ):
+        limit: int | None = None,
+    ) -> list[dict]:
         if colnames:
             real_colnames = colnames
-            colnames = ",".join(colnames)
+            colnames_query = ",".join(colnames)
         else:
-            colnames = "*"
             real_colnames = self._get_colnames(table_name=table_name)
+            colnames_query = "*"
 
         if add_index and order:
-            colnames = f"row_number() over (order by {order}) as idx, {colnames}"
-            real_colnames = ("idx", *real_colnames)
+            colnames_query = (
+                f"row_number() over (order by {order}) as idx, {colnames_query}"
+            )
+            real_colnames.insert(0, "idx")
 
-        query = f"""select {colnames} from {table_name}"""
+        query = f"""select {colnames_query} from {table_name}"""
         if filter:
             query += f" where {filter} "
         if order:
             query += f" order by {order} "
         if limit:
             query += f" limit {limit}"
+
         res = self._execute(query)
-        return res.fetchall(), real_colnames
+        return [dict(zip(real_colnames, row)) for row in res.fetchall()]
 
     def add_record(self, table_name, values: dict):
         query = (
