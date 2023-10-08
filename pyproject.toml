@@ -63,6 +63,3 @@ fixable = ["ALL"]
 include = ["src", "tests"]
 
 pythonVersion = "3.11"
-
-[tool.mypy]
-include = ["src", "tests"]
