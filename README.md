@@ -1,4 +1,4 @@
-# whatsup - Simple task tracker for one day (WIP)
+# whatsup - Simple daily task tracker (WIP)
 
 [![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm.fming.dev)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -15,7 +15,7 @@
 
 ## Installation
 
-1. A good way - install using pipx as a global package in an isolated environment. command: `pipx install something??`
+1. A good way - install using pipx as a global package in an isolated environment. command: `pipx install link_to_github??`
 2. Rye is also capable of installing isolated global packages, but I haven't tried it
 3. ...
 
@@ -76,6 +76,7 @@ https://github.com/pyrogn/whatsup/assets/60060559/ee3ae3aa-0a67-44da-a899-c6d6f3
 - To learn intricacies of managing a DB (although a very simple one)
 
 ## What's next? (possibilities)
+- Add repeating tasks
 - A tool for managing long-term plans
 - A tool with hierarchical structure for big tasks
 - Rewrite this to another language

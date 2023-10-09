@@ -14,7 +14,7 @@ action = TaskAction(db)
 @app.command()
 def show():
     """Show all active tasks"""
-    print(action.show_tasks())
+    print(action.show_active_tasks())
 
 
 @app.command()
@@ -24,7 +24,7 @@ def add(
     deadline: int = 24,
 ):
     """Add a new task"""
-    action.create_task(name=name, priority=priority, deadline=deadline)
+    action.add_task(name=name, priority=priority, deadline=deadline)
 
 
 @app.command()
@@ -36,7 +36,7 @@ def done(task_num: int):
 @app.command()
 def rm(task_num: int):
     """Remove a task"""
-    action.remove_task(int(task_num))
+    action.rm_task(int(task_num))
 
 
 @app.command()

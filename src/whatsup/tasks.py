@@ -43,8 +43,9 @@ class TasksPrettyTable:
     tasks: Collection[ActiveTask | ArcTask]
 
     def present_tasks(self) -> str:
+        """Print tasks in a nicely formatted table"""
         if self.task_type == "active":
-            str_output = self._present_current_tasks()
+            str_output = self._present_active_tasks()
         elif self.task_type == "arc":
             str_output = self._present_arc_tasks()
         else:
@@ -56,13 +57,14 @@ class TasksPrettyTable:
         collection: Collection[ActiveTask | ArcTask],
         attrs: list[str],
     ) -> dict[str, int]:
+        """Find max length of value in column"""
         max_lengths = {}
         for attr in attrs:
             max_len = max([len(str(getattr(task, attr))) for task in collection])
             max_lengths[attr] = max(max_len, len(attr))
         return max_lengths
 
-    def _present_current_tasks(self) -> str:
+    def _present_active_tasks(self) -> str:
         header = ["idx", "name", "priority", "hours"]
         return self._present_tasks_general(header)
 
@@ -111,7 +113,7 @@ class InitTaskTables:
 
     def active_tasks(self):
         if self.is_drop:
-            self.db.drop_table("current_tasks")
+            self.db.drop_table("active_tasks")
         schema = [
             "id integer primary key autoincrement not null",
             "priority integer default 1",
@@ -119,7 +121,7 @@ class InitTaskTables:
             "deadline timestamp",
             "name varchar",
         ]
-        self.db.create_table("current_tasks", schema)
+        self.db.create_table("active_tasks", schema)
 
 
 class TaskAction:
@@ -130,7 +132,7 @@ class TaskAction:
 
     def _make_active_task_list(self):
         res = self.db.fetch_records(
-            "current_tasks",
+            "active_tasks",
             colnames=["name", "priority", "deadline"],
             order="priority desc, date_inserted",
             add_index=True,
@@ -148,17 +150,19 @@ class TaskAction:
         return res
 
     def init_task_table(self):
-        InitTaskTables(self.db).active_tasks()
-        InitTaskTables(self.db).archived_tasks()
+        InitTaskTables(self.db, is_drop=True).active_tasks()
+        InitTaskTables(self.db, is_drop=True).archived_tasks()
 
-    def create_task(self, **values):
+    def add_task(self, **values):
+        """Create a new task"""
         # make a task constructor?
         values["deadline"] = (
             datetime.now() + timedelta(hours=values.get("deadline", 24))
         ).strftime("%Y-%m-%d %H:%M:%S")
-        self.db.add_record("current_tasks", values)
+        self.db.add_record("active_tasks", values)
 
     def done_task(self, task_number: int) -> None:
+        """Mark a task as done"""
         self._move_active_task_to_arc(task_number, "done")
 
     def task_num_to_id(self, task_num: int) -> int:
@@ -166,7 +170,7 @@ class TaskAction:
         Another option: add idx and filter directly on this column
             without extra read"""
         df = self.db.fetch_records(
-            "current_tasks",
+            "active_tasks",
             colnames=["id"],
             order="priority desc, date_inserted",
             add_index=True,
@@ -176,9 +180,9 @@ class TaskAction:
 
     def edit_task(self, task_number: int, value: dict) -> None:
         task_id = self.task_num_to_id(task_number)
-        self.db.update_record("current_tasks", value=value, filter=f"id = {task_id}")
+        self.db.update_record("active_tasks", value=value, filter=f"id = {task_id}")
 
-    def remove_task(self, task_number: int) -> None:
+    def rm_task(self, task_number: int) -> None:
         self._move_active_task_to_arc(task_number, "rm")
 
     def _move_active_task_to_arc(
@@ -186,7 +190,7 @@ class TaskAction:
     ):
         task_id = self.task_num_to_id(task_number)
         row = self.db.fetch_records(
-            "current_tasks",
+            "active_tasks",
             ["name", "deadline", "priority"],
             filter=f"id = {task_id}",
         )[0]
@@ -194,7 +198,7 @@ class TaskAction:
         row["reason"] = map_reason[reason]
         self.db.add_record("archived_tasks", row)
 
-        self.db.delete_record("current_tasks", filter=f"id = {task_id}")
+        self.db.delete_record("active_tasks", filter=f"id = {task_id}")
 
     @staticmethod
     def df_to_str(df: list[dict], task_type: Literal["active", "arc"]) -> str:
@@ -202,7 +206,7 @@ class TaskAction:
         task_collection = [task_class_map[task_type](**row) for row in df]
         return TasksPrettyTable(task_type, task_collection).present_tasks()
 
-    def show_tasks(self) -> str:
+    def show_active_tasks(self) -> str:
         tasks_df = self._make_active_task_list()
         return self.df_to_str(tasks_df, task_type="active")
 
@@ -213,22 +217,15 @@ class TaskAction:
 
 if __name__ == "__main__":
     action = TaskAction(db)
-    action.create_task(name="task 1", priority=3)
-    action.create_task(
+    action.init_task_table()
+    action.add_task(name="task 1", priority=3)
+    action.add_task(
         name="task 2",
     )
-    # print(action._make_task_list())
-    print(action.show_tasks())
+    print(action.show_active_tasks())
     action.edit_task(2, {"name": "task2 edited"})
-    print(action.show_tasks())
+    print(action.show_active_tasks())
     action.done_task(1)
-    action.remove_task(1)
+    action.rm_task(1)
     print()
-    print(action.show_tasks())
-    # res, colnames = db.fetch_records("archived_tasks")
-    # print()
-    # print(res)
-    # print(action.show_tasks())
-    # action.remove_task(1)
-    # action.create_task("task 3")
-    # print(action.show_tasks())
+    print(action.show_active_tasks())

@@ -27,6 +27,7 @@ class DataBase:
             c.executemany(query, data)
 
     def create_table(self, table_name: str, schema: list[str]) -> None:
+        """Create table with provided schema"""
         schema_str = ", ".join(schema)
         self._execute(
             f"""CREATE TABLE if not exists {table_name} (
@@ -57,6 +58,7 @@ class DataBase:
         add_index: bool = False,
         limit: int | None = None,
     ) -> list[dict]:
+        """Form sql query and get a result"""
         if colnames:
             real_colnames = colnames
             colnames_query = ",".join(colnames)
@@ -82,6 +84,7 @@ class DataBase:
         return [dict(zip(real_colnames, row)) for row in res.fetchall()]
 
     def add_record(self, table_name: str, values: dict) -> None:
+        """Add one record to a table"""
         query = (
             f"insert into {table_name} ({','.join(values)}) "
             f"values ({', '.join(['?'] * len(values.values()))})"
@@ -97,6 +100,7 @@ class DataBase:
         value: dict,
         filter: str = "",
     ) -> None:
+        """Update values in columns with optional filter"""
         values_query = ",".join([f"{i} = {j!r}" for i, j in value.items()])
         query = f"""update {table_name} set {values_query}"""
         if filter:
@@ -114,9 +118,9 @@ if __name__ == "__main__":
     db = DataBase("whatsup.db")
     db.create_table("asdf2", ["i integer"])
     db.truncate_table("asdf2")
-    # db.add_record("asdf2", ["i"], [1, 2, 3, -98])
-    # print(db.fetch_records("asdf2"))
-    # db.update_record("asdf2", {"i": 8}, filter="i=-98")
-    # print(db.fetch_records("asdf2"))
-    # db.delete_record("asdf2", filter="i=1")
-    # print(db.fetch_records("asdf2", colnames=["i"]))
+    db.add_record("asdf2", {"i": 9})
+    print(db.fetch_records("asdf2"))
+    db.update_record("asdf2", {"i": 8}, filter="i=9")
+    print(db.fetch_records("asdf2"))
+    db.delete_record("asdf2", filter="i=8")
+    print(db.fetch_records("asdf2", colnames=["i"]))
