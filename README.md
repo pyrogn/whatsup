@@ -8,7 +8,7 @@
 - Every day you have no more than **3 tasks**
 - Default deadline for a task - **24 hours**
 - Priority of daily tasks is set of **{1, 2, 3}**, so you have clear order of tasks
-- Program is running in **shell**. No registration, no internet, no bloated browser
+- Program is running in **shell**. No registration, no internet, no javascript
 
 ### What problem does this tool solve
 <img src="./img/whatsup.png" width="400"/>
