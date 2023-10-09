@@ -150,8 +150,8 @@ class TaskAction:
         return res
 
     def init_task_table(self):
-        InitTaskTables(self.db, is_drop=True).active_tasks()
-        InitTaskTables(self.db, is_drop=True).archived_tasks()
+        InitTaskTables(self.db, is_drop=False).active_tasks()
+        InitTaskTables(self.db, is_drop=False).archived_tasks()
 
     def add_task(self, **values):
         """Create a new task"""
@@ -217,7 +217,7 @@ class TaskAction:
 
 if __name__ == "__main__":
     action = TaskAction(db)
-    action.init_task_table()
+    # action.init_task_table()
     action.add_task(name="task 1", priority=3)
     action.add_task(
         name="task 2",
