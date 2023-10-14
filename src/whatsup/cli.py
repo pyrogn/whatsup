@@ -2,7 +2,7 @@
 import sys
 
 import typer
-from whatsup.tasks import TaskAction, InitTaskTables, db
+from whatsup.tasks import TaskAction, InitTaskTables, db, get_deadline_from_hours
 from typing_extensions import Annotated
 
 # deadline doesn't work correctly for now
@@ -58,6 +58,9 @@ def upd(task_num: int, attr: str, value: str):
     if attr not in AVAILABLE_ATTRS_UPD:
         print(f"choose attr from {AVAILABLE_ATTRS_UPD}")
         sys.exit(1)
+    if attr == "deadline":  # leaking abstraction, fix this later
+        # also this is new deadline from now... Maybe not what you expect
+        value = get_deadline_from_hours(float(value))
     action.edit_task(task_num, {attr: value})
 
 

@@ -124,6 +124,14 @@ class InitTaskTables:
         self.db.create_table("active_tasks", schema)
 
 
+def get_deadline_from_hours(hours: float) -> str:
+    """Get ts of deadline from hours given on the task"""
+    datetime_deadline = (datetime.now() + timedelta(hours=hours)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    return datetime_deadline
+
+
 class TaskAction:
     def __init__(self, db):
         self.db = db
@@ -156,9 +164,7 @@ class TaskAction:
     def add_task(self, **values):
         """Create a new task"""
         # make a task constructor?
-        values["deadline"] = (
-            datetime.now() + timedelta(hours=values.get("deadline", 24))
-        ).strftime("%Y-%m-%d %H:%M:%S")
+        values["deadline"] = get_deadline_from_hours(values.get("deadline", 24))
         self.db.add_record("active_tasks", values)
 
     def done_task(self, task_number: int) -> None:
