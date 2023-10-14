@@ -67,7 +67,7 @@ https://github.com/pyrogn/whatsup/assets/60060559/ee3ae3aa-0a67-44da-a899-c6d6f3
 - [ ] Add constraints (a number of tasks, average priority, deadline)
 
 ## Experiments
-- [ ] Learn how to juggle multiple PRs and how issues are linked to PR
+- [x] Learn how to juggle multiple PRs and how issues are linked to PR
 - [ ] Make this library available as package (not necessary PyPI)
 
 ## The Why
