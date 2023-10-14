@@ -1,8 +1,12 @@
 """CLI logic"""
+import sys
+
 import typer
 from whatsup.tasks import TaskAction, InitTaskTables, db
 from typing_extensions import Annotated
 
+# deadline doesn't work correctly for now
+AVAILABLE_ATTRS_UPD = ["name", "deadline", "priority"]
 
 app = typer.Typer()
 quick_app = typer.Typer()
@@ -46,9 +50,15 @@ def arc():
 
 
 @app.command()
-def upd(task_num, attr, value):
-    """Update info about a task"""
-    raise NotImplementedError
+def upd(task_num: int, attr: str, value: str):
+    """Update info about a task
+
+    Format: task_num attr value
+    """
+    if attr not in AVAILABLE_ATTRS_UPD:
+        print(f"choose attr from {AVAILABLE_ATTRS_UPD}")
+        sys.exit(1)
+    action.edit_task(task_num, {attr: value})
 
 
 @app.command()
